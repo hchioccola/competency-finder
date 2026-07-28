@@ -696,10 +696,10 @@ export default function App() {
     <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "Arial, Helvetica, sans-serif" }}>
 
       {/* Top nav */}
-      <div style={{ background: "#c0392b", borderBottom: "3px solid #a93226" }}>
+      <div style={{ background: "#DA291C", borderBottom: "3px solid #DA291C" }}>
         <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "stretch" }}>
           <div style={{ padding: "16px 0 0", marginRight: 32 }}>
-            <div style={{ fontSize: 9, color: "#555", letterSpacing: 3, textTransform: "uppercase", marginBottom: 2 }}>Role Profile Tool</div>
+            <div style={{ fontSize: 9, color: "#ffffff", letterSpacing: 3, textTransform: "uppercase", marginBottom: 2 }}></div>
           </div>
           {[
             { key: "selector", label: "Competency Selector" },
