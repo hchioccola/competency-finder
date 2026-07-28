@@ -699,7 +699,7 @@ export default function App() {
       <div style={{ background: "#DA291C", borderBottom: "3px solid #DA291C" }}>
         <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "stretch" }}>
           <div style={{ padding: "16px 0 0", marginRight: 32 }}>
-            <div style={{ fontSize: 9, color: "#ffffff", letterSpacing: 3, textTransform: "uppercase", marginBottom: 2 }}> Global TA Hiring Tools BETA </div>
+            <div style={{ fontSize: 9, color: "#ffffff", letterSpacing: 3, textTransform: "uppercase", marginBottom: 1.5 }}> TA Tools | BETA </div>
           </div>
           {[
             { key: "selector", label: "Competency Selector" },
