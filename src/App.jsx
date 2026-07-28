@@ -698,8 +698,8 @@ export default function App() {
       {/* Top nav */}
       <div style={{ background: "#DA291C", borderBottom: "3px solid #DA291C" }}>
         <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "stretch" }}>
-          <div style={{ padding: "10px 0 0", marginRight: 32 }}>
-            <div style={{ fontSize: 9, color: "#ffffff", letterSpacing: 3, textTransform: "uppercase", marginBottom: 1.5 }}> TA Tools | BETA </div>
+          <div style={{ padding: "12px 0 0", marginRight: 32 }}>
+            <div style={{ fontSize: 9, color: "#ffffff", letterSpacing: 3, textTransform: "uppercase", marginBottom: 1.5 }}> TA Tools | BETA v1 </div>
           </div>
           {[
             { key: "selector", label: "Competency Selector" },
@@ -724,7 +724,7 @@ export default function App() {
               </p>
             </div>
             {gradeInfo && (
-              <div style={{ background: "rgba(0,0,0,0.2)", padding: "10px 24px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+              <div style={{ background: "rgba(0,0,0,0.2)", padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                   <span style={{ fontSize: 18, fontWeight: "bold", color: "white" }}>{gradeKey}</span>
                   <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontStyle: "italic" }}>{gradeInfo.titles}</span>
