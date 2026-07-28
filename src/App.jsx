@@ -745,17 +745,25 @@ export default function App() {
           <div style={{ maxWidth: 860, margin: "0 auto", padding: "24px" }}>
             {/* Inputs */}
             <div style={{ background: "white", border: "1px solid #e5e0d8", borderRadius: 4, padding: "18px 20px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 12 }}>
-                <div style={{ flex: 2, minWidth: 180 }}>
-                  <label style={lbl}>Job Title</label>
-                  <input value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder="e.g. Head of Talent Acquisition" style={inp} onKeyDown={e => e.key === "Enter" && handleGenerate()} />
-                </div>
-                <div style={{ flex: 1, minWidth: 90 }}>
-                  <label style={lbl}>Grade</label>
-                  <input value={grade} onChange={e => setGrade(e.target.value)} placeholder="e.g. M4" style={inp} onKeyDown={e => e.key === "Enter" && handleGenerate()} />
-                </div>
-                <button onClick={handleGenerate} style={btn(headerAccent)}>Generate</button>
-              </div>
+  <div
+    style={{
+      display: "flex",
+      gap: 12,
+      flexWrap: "wrap",
+      alignItems: "flex-end",
+      marginBottom: 12,
+    }}
+  >
+    <div style={{ flex: 1, minWidth: 120 }}>
+      <label style={lbl}>Grade</label>
+      <input
+        value={grade}
+        onChange={e => setGrade(e.target.value)}
+        placeholder="e.g. M4"
+        style={inp}
+      />
+    </div>
+  </div>              
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={resetSelections} style={ghostBtn}>Reset selections</button>
                 <button onClick={resetAll} style={ghostBtn}>Start new role</button>
