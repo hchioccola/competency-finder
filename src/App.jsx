@@ -720,7 +720,7 @@ export default function App() {
             <div style={{ maxWidth: 860, margin: "0 auto", padding: "18px 24px" }}>
               <h2 style={{ margin: 0, color: "white", fontSize: 18, fontWeight: "normal" }}>Competency Selector</h2>
               <p style={{ margin: "4px 0 0", color: "rgba(255,255,255,0.7)", fontSize: 12 }}>
-                Choose 6 competencies — 2 from each cluster — and select the right behavioural indicator for each.
+                Enter the role grade to view the recommended mix of competencies. Select 2 from each Cluster (Leading, Thinking, Engaging), for a total of 6 competencies. Select 1 behavioural indicator for each.
               </p>
             </div>
             {gradeInfo && (
