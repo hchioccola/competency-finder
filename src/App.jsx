@@ -703,7 +703,7 @@ export default function App() {
             <div style={{ color: "#ccc", fontSize: 13 }}>Hiring Manager Suite</div>
           </div>
           {[
-            { key: "selector", label: "Competency Finder" },
+            { key: "selector", label: "Competency Selector" },
             { key: "interview", label: "Interview Pack" },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)} style={{ background: "none", border: "none", borderBottom: tab === t.key ? "3px solid #fff" : "3px solid transparent", color: tab === t.key ? "white" : "#888", padding: "16px 20px 13px", cursor: "pointer", fontSize: 13, fontFamily: "inherit", letterSpacing: 0.3, marginBottom: -3, transition: "all 0.15s" }}>
@@ -713,13 +713,13 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── TAB 1: COMPETENCY FINDER ────────────────────────────────────── */}
+      {/* ── TAB 1: COMPETENCY SELECTOR ────────────────────────────────────── */}
       {tab === "selector" && (
         <div>
           {/* Colour header */}
           <div style={{ background: headerAccent, transition: "background 0.4s" }}>
             <div style={{ maxWidth: 860, margin: "0 auto", padding: "18px 24px" }}>
-              <h2 style={{ margin: 0, color: "white", fontSize: 18, fontWeight: "normal" }}>Competency Finder</h2>
+              <h2 style={{ margin: 0, color: "white", fontSize: 18, fontWeight: "normal" }}>Competency Selector</h2>
               <p style={{ margin: "4px 0 0", color: "rgba(255,255,255,0.7)", fontSize: 12 }}>
                 Choose 6 competencies — 2 from each cluster — and select the right behavioural indicator for each.
               </p>
@@ -824,7 +824,7 @@ export default function App() {
               <h2 style={{ margin: 0, color: "white", fontSize: 18, fontWeight: "normal" }}>Interview Pack Generator</h2>
               <p style={{ margin: "4px 0 0", color: "rgba(255,255,255,0.7)", fontSize: 12 }}>
                 {iPackGenerated && iTotalSelected === 6
-                  ? "Pre-populated from competency finder. Review and generate your pack below."
+                  ? "Pre-populated from competency selector. Review and generate your pack below."
                   : "Select 6 competencies below, then generate your interview pack."}
               </p>
             </div>
