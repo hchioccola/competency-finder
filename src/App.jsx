@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 // ─── LEVEL COLOURS ────────────────────────────────────────────────────────────
 
 const LC = {
-  Skilled:        { bg: "#1e7e4a", light: "#ef5ee", border: "#a8d5b8" },
+  Skilled:        { bg: "#1e7e4a", light: "#e8f5ee", border: "#a8d5b8" },
   Accomplished:   { bg: "#c0392b", light: "#fdecea", border: "#f0b0aa" },
   "Leading Edge": { bg: "#6c3483", light: "#f3eef9", border: "#c9a8e0" },
 };
@@ -476,117 +476,211 @@ const FRAMEWORK = [
   },
 ];
 
+const ALL_COMPS = FRAMEWORK.flatMap(c => c.competencies.map(comp => ({ ...comp, clusterKey: c.key, clusterLabel: c.label, clusterColor: c.color })));
+
 // ─── INITIAL COMP STATE ───────────────────────────────────────────────────────
 
 function initCompState() {
   const s = {};
   FRAMEWORK.forEach(cluster => {
     cluster.competencies.forEach(comp => {
-      s[comp.id] = {
-        expanded: false,
-        activeLevel: null,
-        chosenLevel: null,
-        chosenIndicator: null,
-      };
+      s[comp.id] = { expanded: false, activeLevel: null, chosenLevel: null, chosenIndicator: null };
     });
   });
   return s;
 }
 
-// ─── MAIN COMPONENT: COMPETENCY FINDER ────────────────────────────────────────
+// ─── SCORING FRAMEWORK ────────────────────────────────────────────────────────
+
+const SCORING = [
+  { score: 1, label: "Not met",           color: "#c0392b" },
+  { score: 2, label: "Partially met",     color: "#e67e22" },
+  { score: 3, label: "Met",               color: "#2e86c1" },
+  { score: 4, label: "Partially exceeded",color: "#1e7e4a" },
+  { score: 5, label: "Exceeded",          color: "#6c3483" },
+];
+
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 export default function App() {
+  const [tab, setTab]           = useState("selector");
   const [jobTitle, setJobTitle] = useState("");
   const [grade, setGrade]       = useState("");
   const [comps, setComps]       = useState(initCompState());
   const [modal, setModal]       = useState(null);
   const [copied, setCopied]     = useState(false);
+  const [packGenerated, setPackGenerated] = useState(false);
+
+  // Interview tab has its own independent comp state if user arrives directly
+  const [iComps, setIComps]     = useState(initCompState());
+  const [iJobTitle, setIJobTitle] = useState("");
+  const [iGrade, setIGrade]     = useState("");
+  const [iModal, setIModal]     = useState(null);
+  const [iPackGenerated, setIPackGenerated] = useState(false);
+  const [iCopied, setICopied]   = useState(false);
 
   const gradeKey  = grade.trim().toUpperCase();
   const gradeInfo = GRADES[gradeKey] || null;
   const lvlTabs   = uniqueLevels(gradeKey);
   const lvlCounts = levelCounts(gradeKey);
 
-  // ── Core logic ──────────────────────────────────────────────────────────────
+  const iGradeKey  = iGrade.trim().toUpperCase();
+  const iGradeInfo = GRADES[iGradeKey] || null;
+  const iLvlTabs   = uniqueLevels(iGradeKey);
+
+  // ── Selector logic ─────────────────────────────────────────────────────────
 
   const handleGenerate = () => {
-    if (gradeKey && GRADES[gradeKey]) {
-      setComps(initCompState());
-      return;
-    }
+    if (gradeKey && GRADES[gradeKey]) { setComps(initCompState()); setPackGenerated(false); return; }
     const inf = inferFromTitle(jobTitle);
     if (inf) setModal({ ...inf, mix: GRADES[inf.grade]?.mix || [] });
-    else     setComps(initCompState());
+    else { setComps(initCompState()); setPackGenerated(false); }
   };
 
-  const confirmGrade    = (g) => { setGrade(g); setComps(initCompState()); setModal(null); };
-  const continueWithout = ()  => { setComps(initCompState()); setModal(null); };
-  const resetSelections = ()  => { setComps(initCompState()); };
-  const resetAll        = ()  => { setJobTitle(""); setGrade(""); setComps(initCompState()); };
+  const confirmGrade    = (g) => { setGrade(g); setComps(initCompState()); setPackGenerated(false); setModal(null); };
+  const continueWithout = ()  => { setComps(initCompState()); setPackGenerated(false); setModal(null); };
+  const resetSelections = ()  => { setComps(initCompState()); setPackGenerated(false); };
+  const resetAll        = ()  => { setJobTitle(""); setGrade(""); setComps(initCompState()); setPackGenerated(false); };
 
-  const toggleExpanded = (id) =>
-    setComps(prev => ({ ...prev, [id]: { ...prev[id], expanded: !prev[id].expanded } }));
-
-  const setActiveLevel = (id, lv) =>
-    setComps(prev => ({ ...prev, [id]: { ...prev[id], activeLevel: lv } }));
+  const toggleExpanded = (id) => setComps(prev => ({ ...prev, [id]: { ...prev[id], expanded: !prev[id].expanded } }));
+  const setActiveLevel = (id, lv) => setComps(prev => ({ ...prev, [id]: { ...prev[id], activeLevel: lv } }));
 
   const tickIndicator = (compId, level, idx) => {
     const s = comps[compId];
     if (s.chosenLevel === level && s.chosenIndicator === idx) {
-      setComps(prev => ({
-        ...prev,
-        [compId]: { ...prev[compId], chosenLevel: null, chosenIndicator: null, expanded: true },
-      }));
+      setComps(prev => ({ ...prev, [compId]: { ...prev[compId], chosenLevel: null, chosenIndicator: null, expanded: true } }));
       return;
     }
     const cluster = FRAMEWORK.find(c => c.competencies.some(cc => cc.id === compId));
-    const count   = cluster.competencies.filter(c => comps[c.id].chosenIndicator !== null).length;
-    if (s.chosenIndicator === null && count >= 2) return; // max 2 per cluster
-    setComps(prev => ({
-      ...prev,
-      [compId]: { ...prev[compId], chosenLevel: level, chosenIndicator: idx, expanded: false },
-    }));
+    const count = cluster.competencies.filter(c => comps[c.id].chosenIndicator !== null).length;
+    if (s.chosenIndicator === null && count >= 2) return;
+    setComps(prev => ({ ...prev, [compId]: { ...prev[compId], chosenLevel: level, chosenIndicator: idx, expanded: false } }));
+    setPackGenerated(false);
   };
 
   const totalSelected = Object.values(comps).filter(s => s.chosenIndicator !== null).length;
   const clusterCounts = FRAMEWORK.map(c => ({
-    key:   c.key,
-    label: c.label,
-    color: c.color,
+    key: c.key, label: c.label, color: c.color,
     count: c.competencies.filter(cc => comps[cc.id].chosenIndicator !== null).length,
   }));
   const isReady = clusterCounts.every(c => c.count === 2);
 
   const headerAccent = gradeInfo
-    ? (lvlTabs.includes("Leading Edge")
-        ? LC["Leading Edge"].bg
-        : lvlTabs.includes("Accomplished")
-        ? LC.Accomplished.bg
-        : LC.Skilled.bg)
+    ? (lvlTabs.includes("Leading Edge") ? LC["Leading Edge"].bg : lvlTabs.includes("Accomplished") ? LC.Accomplished.bg : LC.Skilled.bg)
     : "#374151";
 
-  // ── Clean export for copy to clipboard ──────────────────────────────────────
+  // ── Interview tab logic ────────────────────────────────────────────────────
 
+  const handleGoToInterview = () => {
+    // Copy selector state into interview state
+    setIJobTitle(jobTitle);
+    setIGrade(grade);
+    setIComps(JSON.parse(JSON.stringify(comps)));
+    setIPackGenerated(true);
+    setTab("interview");
+  };
+
+  const iHandleGenerate = () => {
+    if (iGradeKey && GRADES[iGradeKey]) { setIComps(initCompState()); setIPackGenerated(false); return; }
+    const inf = inferFromTitle(iJobTitle);
+    if (inf) setIModal({ ...inf, mix: GRADES[inf.grade]?.mix || [] });
+    else { setIComps(initCompState()); setIPackGenerated(false); }
+  };
+
+  const iConfirmGrade    = (g) => { setIGrade(g); setIComps(initCompState()); setIPackGenerated(false); setIModal(null); };
+  const iContinueWithout = ()  => { setIComps(initCompState()); setIPackGenerated(false); setIModal(null); };
+  const iResetSelections = ()  => { setIComps(initCompState()); setIPackGenerated(false); };
+  const iResetAll        = ()  => { setIJobTitle(""); setIGrade(""); setIComps(initCompState()); setIPackGenerated(false); };
+
+  const iToggleExpanded = (id) => setIComps(prev => ({ ...prev, [id]: { ...prev[id], expanded: !prev[id].expanded } }));
+  const iSetActiveLevel = (id, lv) => setIComps(prev => ({ ...prev, [id]: { ...prev[id], activeLevel: lv } }));
+
+  const iTickIndicator = (compId, level, idx) => {
+    const s = iComps[compId];
+    if (s.chosenLevel === level && s.chosenIndicator === idx) {
+      setIComps(prev => ({ ...prev, [compId]: { ...prev[compId], chosenLevel: null, chosenIndicator: null, expanded: true } }));
+      return;
+    }
+    const cluster = FRAMEWORK.find(c => c.competencies.some(cc => cc.id === compId));
+    const count = cluster.competencies.filter(c => iComps[c.id].chosenIndicator !== null).length;
+    if (s.chosenIndicator === null && count >= 2) return;
+    setIComps(prev => ({ ...prev, [compId]: { ...prev[compId], chosenLevel: level, chosenIndicator: idx, expanded: false } }));
+    setIPackGenerated(false);
+  };
+
+  const iTotalSelected = Object.values(iComps).filter(s => s.chosenIndicator !== null).length;
+  const iClusterCounts = FRAMEWORK.map(c => ({
+    key: c.key, label: c.label, color: c.color,
+    count: c.competencies.filter(cc => iComps[cc.id].chosenIndicator !== null).length,
+  }));
+  const iIsReady = iClusterCounts.every(c => c.count === 2);
+
+  const iHeaderAccent = iGradeInfo
+    ? (iLvlTabs.includes("Leading Edge") ? LC["Leading Edge"].bg : iLvlTabs.includes("Accomplished") ? LC.Accomplished.bg : LC.Skilled.bg)
+    : "#374151";
+
+  // ── Interview pack export ──────────────────────────────────────────────────
+
+  const selectedForInterview = ALL_COMPS.filter(comp => iComps[comp.id]?.chosenIndicator !== null);
+
+  const exportInterview = () => {
+    const lines = [];
+    if (iJobTitle) lines.push(`Role: ${iJobTitle}`);
+    if (iGrade)    lines.push(`Grade: ${iGradeKey}`);
+    lines.push("");
+    lines.push("SCORING FRAMEWORK");
+    lines.push("─────────────────");
+    SCORING.forEach(s => lines.push(`${s.score} — ${s.label}`));
+    lines.push("");
+    lines.push("─────────────────────────────────────────────────────");
+    lines.push("");
+    selectedForInterview.forEach((comp, i) => {
+      const s = iComps[comp.id];
+      const indicator = comp.indicators[s.chosenLevel]?.[s.chosenIndicator] || "";
+      const qs = comp.questions[s.chosenLevel] || [];
+      lines.push(`COMPETENCY ${i + 1}: ${comp.name.toUpperCase()}`);
+      lines.push(`Cluster: ${comp.clusterLabel}  |  Level: ${s.chosenLevel}`);
+      lines.push(`What good looks like: ${indicator}`);
+      lines.push("");
+      qs.forEach((q, qi) => {
+        lines.push(`Q${qi + 1} [${q.type}]`);
+        lines.push(q.q);
+        lines.push("");
+      });
+      lines.push("Notes:");
+      lines.push("");
+      lines.push("Score (1–5):");
+      lines.push("");
+      lines.push("─────────────────────────────────────────────────────");
+      lines.push("");
+    });
+    return lines.join("\n").trim();
+  };
+
+  const copyInterview = () => {
+    navigator.clipboard.writeText(exportInterview());
+    setICopied(true);
+    setTimeout(() => setICopied(false), 2500);
+  };
+
+  // selector copy
   const exportSelector = () => {
     const lines = [];
-
-    if (jobTitle) lines.push(`Role: ${jobTitle}`);
-    if (grade)    lines.push(`Grade: ${gradeKey}`);
-    if (jobTitle || grade) lines.push("");
-
+    if (jobTitle) lines.push(`Role: ${jobTitle}`, "");
+    if (grade)    lines.push(`Grade: ${gradeKey}`, "");
     FRAMEWORK.forEach(cluster => {
       const selected = cluster.competencies.filter(c => comps[c.id].chosenIndicator !== null);
       if (!selected.length) return;
-
-      lines.push(`${cluster.label}`);
+      lines.push(`Cluster: ${cluster.label.toUpperCase()}`);
       selected.forEach(comp => {
         const s = comps[comp.id];
         const indicator = comp.indicators[s.chosenLevel]?.[s.chosenIndicator] || "";
-        lines.push(`- ${comp.name} (${s.chosenLevel}): ${indicator}`);
+        lines.push(`Competency: ${comp.name}`);
+        lines.push(`Level: ${s.chosenLevel}`);
+        lines.push(`Behavioural Indicator: ${indicator}`);
+        lines.push("");
       });
-      lines.push("");
     });
-
     return lines.join("\n").trim();
   };
 
@@ -596,63 +690,405 @@ export default function App() {
     setTimeout(() => setCopied(false), 2500);
   };
 
-  // ── Render: Competency Finder ───────────────────────────────────────────────
+  // ── RENDER ─────────────────────────────────────────────────────────────────
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8f6f2", fontFamily: "Georgia, serif" }}>
-      {/* App header */}
+
+      {/* Top nav */}
       <div style={{ background: "#1a1a1a", borderBottom: "3px solid #333" }}>
-        <div
-          style={{
-            maxWidth: 860,
-            margin: "0 auto",
-            padding: "0 24px",
-            display: "flex",
-            alignItems: "stretch",
-          }}
-        >
+        <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "stretch" }}>
           <div style={{ padding: "16px 0 0", marginRight: 32 }}>
-            <div
-              style={{
-                fontSize: 9,
-                color: "#555",
-                letterSpacing: 3,
-                textTransform: "uppercase",
-                marginBottom: 2,
-              }}
-            >
-              Competency Finder
-            </div>
+            <div style={{ fontSize: 9, color: "#555", letterSpacing: 3, textTransform: "uppercase", marginBottom: 2 }}>Role Profile Tool</div>
             <div style={{ color: "#ccc", fontSize: 13 }}>Hiring Manager Suite</div>
           </div>
+          {[
+            { key: "selector", label: "Competency Selector" },
+            { key: "interview", label: "Interview Pack" },
+          ].map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)} style={{ background: "none", border: "none", borderBottom: tab === t.key ? "3px solid #fff" : "3px solid transparent", color: tab === t.key ? "white" : "#888", padding: "16px 20px 13px", cursor: "pointer", fontSize: 13, fontFamily: "inherit", letterSpacing: 0.3, marginBottom: -3, transition: "all 0.15s" }}>
+              {t.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Colour header */}
-      <div style={{ background: headerAccent, transition: "background 0.4s" }}>
-        <div style={{ maxWidth: 860, margin: "0 auto", padding: "18px 24px" }}>
-          <h2 style={{ margin: 0, color: "white", fontSize: 18, fontWeight: "normal" }}>
-            Competency Finder
-          </h2>
-          <p style={{ margin: "4px 0 0", color: "rgba(255,255,255,0.7)", fontSize: 12 }}>
-            Choose 6 competencies — 2 from each cluster — and select the right behavioural indicator for each.
-          </p>
+      {/* ── TAB 1: COMPETENCY SELECTOR ────────────────────────────────────── */}
+      {tab === "selector" && (
+        <div>
+          {/* Colour header */}
+          <div style={{ background: headerAccent, transition: "background 0.4s" }}>
+            <div style={{ maxWidth: 860, margin: "0 auto", padding: "18px 24px" }}>
+              <h2 style={{ margin: 0, color: "white", fontSize: 18, fontWeight: "normal" }}>Competency Selector</h2>
+              <p style={{ margin: "4px 0 0", color: "rgba(255,255,255,0.7)", fontSize: 12 }}>
+                Choose 6 competencies — 2 from each cluster — and select the right behavioural indicator for each.
+              </p>
+            </div>
+            {gradeInfo && (
+              <div style={{ background: "rgba(0,0,0,0.2)", padding: "10px 24px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ fontSize: 18, fontWeight: "bold", color: "white" }}>{gradeKey}</span>
+                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontStyle: "italic" }}>{gradeInfo.titles}</span>
+                </div>
+                <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.3)" }} />
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Suggested mix:</span>
+                  {Object.entries(lvlCounts).map(([lvl, count]) => (
+                    <span key={lvl} style={{ background: "rgba(255,255,255,0.18)", color: "white", border: "1px solid rgba(255,255,255,0.4)", fontSize: 11, padding: "2px 10px", borderRadius: 20, fontWeight: "bold" }}>
+                      {count}× {lvl}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ maxWidth: 860, margin: "0 auto", padding: "24px" }}>
+            {/* Inputs */}
+            <div style={{ background: "white", border: "1px solid #e5e0d8", borderRadius: 4, padding: "18px 20px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 12 }}>
+                <div style={{ flex: 2, minWidth: 180 }}>
+                  <label style={lbl}>Job Title</label>
+                  <input value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder="e.g. Head of Talent Acquisition" style={inp} onKeyDown={e => e.key === "Enter" && handleGenerate()} />
+                </div>
+                <div style={{ flex: 1, minWidth: 90 }}>
+                  <label style={lbl}>Grade</label>
+                  <input value={grade} onChange={e => setGrade(e.target.value)} placeholder="e.g. M4" style={inp} onKeyDown={e => e.key === "Enter" && handleGenerate()} />
+                </div>
+                <button onClick={handleGenerate} style={btn(headerAccent)}>Generate</button>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={resetSelections} style={ghostBtn}>Reset selections</button>
+                <button onClick={resetAll} style={ghostBtn}>Start new role</button>
+              </div>
+            </div>
+
+            {/* Status pills */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
+              {clusterCounts.map(c => (
+                <div key={c.key} style={{ display: "flex", alignItems: "center", gap: 5, background: c.count === 2 ? c.color : "#e5e0d8", color: c.count === 2 ? "white" : "#888", padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: "bold", transition: "all 0.2s" }}>
+                  {c.count}/2 {c.label}
+                </div>
+              ))}
+              <span style={{ marginLeft: "auto", fontSize: 11, color: "#aaa", fontStyle: "italic" }}>
+                {isReady ? "✓ 6 selected — ready" : `${totalSelected}/6 — choose 2 per cluster`}
+              </span>
+            </div>
+
+            {/* Clusters */}
+            {FRAMEWORK.map(cluster => {
+              const countInCluster = cluster.competencies.filter(c => comps[c.id].chosenIndicator !== null).length;
+              return (
+                <div key={cluster.key} style={{ marginBottom: 28 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                    <div style={{ width: 4, height: 26, background: cluster.color, borderRadius: 2 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: "#bbb" }}>Cluster</div>
+                      <div style={{ fontSize: 15, fontWeight: "bold", color: "#1a1a1a" }}>{cluster.label}</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: countInCluster === 2 ? cluster.color : "#ccc", fontStyle: "italic", fontWeight: "bold" }}>
+                      {countInCluster === 2 ? "✓ 2 selected" : "Choose 2"}
+                    </div>
+                  </div>
+                  {cluster.competencies.map(comp => renderCompCard(comp, cluster, comps, countInCluster, lvlTabs, toggleExpanded, setActiveLevel, tickIndicator))}
+                </div>
+              );
+            })}
+
+            {/* Export / go to interview */}
+            {totalSelected > 0 && (
+              <div style={{ background: "white", border: "1px solid #e5e0d8", borderRadius: 4, padding: "18px 20px", marginTop: 8 }}>
+                <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#bbb", marginBottom: 10 }}>Output</div>
+                <pre style={{ margin: "0 0 14px", fontSize: 13, lineHeight: 1.9, color: "#222", fontFamily: "Georgia, serif", whiteSpace: "pre-wrap", wordBreak: "break-word", background: "#faf8f5", border: "1px solid #e8e3db", padding: "13px 15px", borderRadius: 3 }}>
+                  {exportSelector()}
+                </pre>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <button onClick={copySelector} style={ghostBtn}>{copied ? "✓ Copied!" : "Copy to clipboard"}</button>
+                  {isReady && (
+                    <button onClick={handleGoToInterview} style={{ ...btn("#1a1a1a"), fontSize: 13, letterSpacing: 0, padding: "10px 22px" }}>
+                      Generate Interview Pack →
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        {gradeInfo && (
-          <div
-            style={{
-              background: "rgba(0,0,0,0.2)",
-              padding: "10px 24px",
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span style={{ fontSize: 18, fontWeight: "bold", color: "white" }}>{gradeKey}</span>
-              <span
-                style={{
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.7)",
-                  fontStyle: "italic",
+      )}
+
+      {/* ── TAB 2: INTERVIEW PACK ─────────────────────────────────────────── */}
+      {tab === "interview" && (
+        <div>
+          <div style={{ background: iHeaderAccent, transition: "background 0.4s" }}>
+            <div style={{ maxWidth: 860, margin: "0 auto", padding: "18px 24px" }}>
+              <h2 style={{ margin: 0, color: "white", fontSize: 18, fontWeight: "normal" }}>Interview Pack Generator</h2>
+              <p style={{ margin: "4px 0 0", color: "rgba(255,255,255,0.7)", fontSize: 12 }}>
+                {iPackGenerated && iTotalSelected === 6
+                  ? "Pre-populated from competency selector. Review and generate your pack below."
+                  : "Select 6 competencies below, then generate your interview pack."}
+              </p>
+            </div>
+          </div>
+
+          <div style={{ maxWidth: 860, margin: "0 auto", padding: "24px" }}>
+
+            {/* Scoring framework */}
+            <div style={{ background: "white", border: "1px solid #e5e0d8", borderRadius: 4, padding: "14px 20px", marginBottom: 20, display: "flex", gap: 0, flexWrap: "wrap", overflow: "hidden" }}>
+              <div style={{ width: "100%", fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#bbb", marginBottom: 10 }}>Scoring Framework</div>
+              {SCORING.map((s, i) => (
+                <div key={s.score} style={{ flex: 1, minWidth: 80, textAlign: "center", padding: "8px 4px", background: s.color, color: "white", borderRight: i < SCORING.length - 1 ? "2px solid white" : "none" }}>
+                  <div style={{ fontSize: 20, fontWeight: "bold" }}>{s.score}</div>
+                  <div style={{ fontSize: 10, marginTop: 2, lineHeight: 1.3 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* If not pre-populated — show selector */}
+            {(!iPackGenerated || iTotalSelected < 6) && (
+              <>
+                <div style={{ background: "white", border: "1px solid #e5e0d8", borderRadius: 4, padding: "18px 20px", marginBottom: 20 }}>
+                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 12 }}>
+                    <div style={{ flex: 2, minWidth: 180 }}>
+                      <label style={lbl}>Job Title</label>
+                      <input value={iJobTitle} onChange={e => setIJobTitle(e.target.value)} placeholder="e.g. Head of Talent Acquisition" style={inp} onKeyDown={e => e.key === "Enter" && iHandleGenerate()} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 90 }}>
+                      <label style={lbl}>Grade</label>
+                      <input value={iGrade} onChange={e => setIGrade(e.target.value)} placeholder="e.g. M4" style={inp} onKeyDown={e => e.key === "Enter" && iHandleGenerate()} />
+                    </div>
+                    <button onClick={iHandleGenerate} style={btn(iHeaderAccent)}>Generate</button>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={iResetSelections} style={ghostBtn}>Reset selections</button>
+                    <button onClick={iResetAll} style={ghostBtn}>Start new role</button>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
+                  {iClusterCounts.map(c => (
+                    <div key={c.key} style={{ display: "flex", alignItems: "center", gap: 5, background: c.count === 2 ? c.color : "#e5e0d8", color: c.count === 2 ? "white" : "#888", padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: "bold", transition: "all 0.2s" }}>
+                      {c.count}/2 {c.label}
+                    </div>
+                  ))}
+                  <span style={{ marginLeft: "auto", fontSize: 11, color: "#aaa", fontStyle: "italic" }}>
+                    {iIsReady ? "✓ Ready — generate pack below" : `${iTotalSelected}/6 — choose 2 per cluster`}
+                  </span>
+                </div>
+
+                {FRAMEWORK.map(cluster => {
+                  const countInCluster = cluster.competencies.filter(c => iComps[c.id].chosenIndicator !== null).length;
+                  return (
+                    <div key={cluster.key} style={{ marginBottom: 28 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                        <div style={{ width: 4, height: 26, background: cluster.color, borderRadius: 2 }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: "#bbb" }}>Cluster</div>
+                          <div style={{ fontSize: 15, fontWeight: "bold", color: "#1a1a1a" }}>{cluster.label}</div>
+                        </div>
+                        <div style={{ fontSize: 11, color: countInCluster === 2 ? cluster.color : "#ccc", fontStyle: "italic", fontWeight: "bold" }}>
+                          {countInCluster === 2 ? "✓ 2 selected" : "Choose 2"}
+                        </div>
+                      </div>
+                      {cluster.competencies.map(comp => renderCompCard(comp, cluster, iComps, countInCluster, iLvlTabs, iToggleExpanded, iSetActiveLevel, iTickIndicator))}
+                    </div>
+                  );
+                })}
+
+                {iIsReady && (
+                  <div style={{ textAlign: "right", marginBottom: 24 }}>
+                    <button onClick={() => setIPackGenerated(true)} style={{ ...btn("#1a1a1a"), fontSize: 13, letterSpacing: 0, padding: "10px 24px" }}>
+                      Generate Interview Pack →
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Interview pack output */}
+            {iPackGenerated && iTotalSelected === 6 && (
+              <div>
+                {/* Edit button */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                  <div style={{ fontSize: 14, color: "#555" }}>
+                    {iJobTitle && <strong>{iJobTitle}</strong>} {iGrade && <span style={{ fontSize: 12, color: "#aaa" }}>· {iGradeKey}</span>}
+                  </div>
+                  <button onClick={() => setIPackGenerated(false)} style={ghostBtn}>← Edit competencies</button>
+                </div>
+
+                {/* Question cards */}
+                {selectedForInterview.map((comp, ci) => {
+                  const s = iComps[comp.id];
+                  const indicator = comp.indicators[s.chosenLevel]?.[s.chosenIndicator] || "";
+                  const qs = comp.questions[s.chosenLevel] || [];
+                  const lc = LC[s.chosenLevel];
+                  return (
+                    <div key={comp.id} style={{ background: "white", border: `1px solid ${lc.border}`, borderLeft: `5px solid ${lc.bg}`, borderRadius: 4, marginBottom: 20, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                      {/* Card header */}
+                      <div style={{ background: lc.light, padding: "14px 18px", borderBottom: `1px solid ${lc.border}` }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                          <div style={{ fontSize: 11, color: "#888", fontWeight: "bold" }}>{ci + 1}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#aaa" }}>{comp.clusterLabel}</div>
+                            <div style={{ fontSize: 15, fontWeight: "bold", color: "#1a1a1a" }}>{comp.name}</div>
+                          </div>
+                          <span style={{ background: lc.bg, color: "white", fontSize: 11, padding: "3px 12px", borderRadius: 20, fontWeight: "bold" }}>{s.chosenLevel}</span>
+                        </div>
+                        <div style={{ marginTop: 8, fontSize: 12, color: "#555", fontStyle: "italic" }}>
+                          <span style={{ color: "#999", fontStyle: "normal", fontSize: 10, letterSpacing: 1, textTransform: "uppercase" }}>What good looks like: </span>
+                          {indicator}
+                        </div>
+                      </div>
+                      {/* Questions */}
+                      <div style={{ padding: "14px 18px" }}>
+                        {qs.map((q, qi) => (
+                          <div key={qi} style={{ marginBottom: qi < qs.length - 1 ? 14 : 0 }}>
+                            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                              <span style={{ background: lc.bg, color: "white", fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: "bold", flexShrink: 0, marginTop: 2 }}>{q.type}</span>
+                              <span style={{ fontSize: 14, lineHeight: 1.6, color: "#222" }}>{q.q}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Copy */}
+                <div style={{ background: "white", border: "1px solid #e5e0d8", borderRadius: 4, padding: "16px 20px", display: "flex", justifyContent: "flex-end", gap: 12, alignItems: "center" }}>
+                  <span style={{ fontSize: 12, color: "#aaa", fontStyle: "italic" }}>Copy the full pack to paste into Word or email</span>
+                  <button onClick={copyInterview} style={btn("#1a1a1a")}>{iCopied ? "✓ Copied!" : "Copy to clipboard"}</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
+      {modal && renderModal(modal, confirmGrade, continueWithout, setModal, headerAccent)}
+      {iModal && renderModal(iModal, iConfirmGrade, iContinueWithout, setIModal, iHeaderAccent)}
+
+    </div>
+  );
+}
+
+// ─── SHARED COMP CARD RENDERER ────────────────────────────────────────────────
+
+function renderCompCard(comp, cluster, compState, countInCluster, lvlTabs, onToggle, onSetLevel, onTick) {
+  const s = compState[comp.id];
+  const isChosen = s.chosenIndicator !== null;
+  const clusterFull = countInCluster >= 2 && !isChosen;
+  const chosenLc = isChosen ? LC[s.chosenLevel] : null;
+  const tabs = lvlTabs.filter(l => comp.indicators[l]);
+  const activeLevel = s.activeLevel || tabs[0];
+  const indicators = comp.indicators[activeLevel] || [];
+
+  return (
+    <div key={comp.id} style={{ background: isChosen ? chosenLc.light : "white", border: `1px solid ${isChosen ? chosenLc.border : "#e5e0d8"}`, borderLeft: `4px solid ${isChosen ? chosenLc.bg : clusterFull ? "#e0dbd4" : cluster.color}`, borderRadius: 4, marginBottom: 8, opacity: clusterFull ? 0.45 : 1, transition: "all 0.15s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+      <div onClick={() => onToggle(comp.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", cursor: "pointer", borderBottom: s.expanded ? `1px solid ${isChosen ? chosenLc.border : "#eee"}` : "none" }}>
+        <div style={{ width: 18, height: 18, borderRadius: 9, border: `2px solid ${isChosen ? chosenLc.bg : "#ccc"}`, background: isChosen ? chosenLc.bg : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.12s" }}>
+          {isChosen && <span style={{ color: "white", fontSize: 10 }}>✓</span>}
+        </div>
+        <span style={{ fontSize: 14, fontWeight: isChosen ? "bold" : "normal", color: isChosen ? "#111" : "#666", flex: 1 }}>{comp.name}</span>
+        {isChosen && <span style={{ fontSize: 11, background: chosenLc.bg, color: "white", padding: "2px 10px", borderRadius: 20, fontWeight: "bold", flexShrink: 0 }}>{s.chosenLevel}</span>}
+        {!isChosen && !clusterFull && <span style={{ fontSize: 11, color: "#ccc", fontStyle: "italic" }}>click to expand</span>}
+        <span style={{ fontSize: 10, color: "#ccc", marginLeft: 4 }}>{s.expanded ? "▲" : "▼"}</span>
+      </div>
+
+      {isChosen && !s.expanded && (
+        <div style={{ padding: "8px 16px 12px 46px" }}>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#333" }}>
+            {comp.indicators[s.chosenLevel]?.[s.chosenIndicator]}
+          </p>
+          <button onClick={e => { e.stopPropagation(); onTick(comp.id, s.chosenLevel, s.chosenIndicator); }} style={{ marginTop: 5, fontSize: 11, color: LC.Accomplished.bg, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit", textDecoration: "underline" }}>
+            Remove selection
+          </button>
+        </div>
+      )}
+
+      {s.expanded && (
+        <div style={{ padding: "14px 16px" }}>
+          {tabs.length > 1 && (
+            <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+              {tabs.map(lvl => {
+                const lc = LC[lvl];
+                const isActive = activeLevel === lvl;
+                return (
+                  <button key={lvl} onClick={() => onSetLevel(comp.id, lvl)} style={{ padding: "5px 16px", borderRadius: 20, border: `2px solid ${lc.bg}`, background: isActive ? lc.bg : "white", color: isActive ? "white" : lc.bg, fontSize: 12, fontWeight: "bold", cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s" }}>
+                    {lvl}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#bbb", marginBottom: 8 }}>Choose a Behavioural Indicator</div>
+          {indicators.map((indicator, idx) => {
+            const isTicked = s.chosenLevel === activeLevel && s.chosenIndicator === idx;
+            const lc = LC[activeLevel];
+            const canTick = isTicked || !clusterFull;
+            return (
+              <div key={idx} onClick={() => canTick && onTick(comp.id, activeLevel, idx)} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "9px 12px", marginBottom: 5, borderRadius: 3, border: `1px solid ${isTicked ? lc.border : "#e8e3db"}`, background: isTicked ? lc.light : "#faf8f5", cursor: canTick ? "pointer" : "not-allowed", transition: "all 0.12s", opacity: clusterFull && !isTicked ? 0.4 : 1 }}>
+                <div style={{ width: 16, height: 16, borderRadius: 8, border: `2px solid ${isTicked ? lc.bg : "#ccc"}`, background: isTicked ? lc.bg : "transparent", flexShrink: 0, marginTop: 2, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.12s" }}>
+                  {isTicked && <span style={{ color: "white", fontSize: 9 }}>✓</span>}
+                </div>
+                <span style={{ fontSize: 13, lineHeight: 1.65, color: isTicked ? "#111" : "#444", fontWeight: isTicked ? "bold" : "normal" }}>{indicator}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── MODAL RENDERER ───────────────────────────────────────────────────────────
+
+function renderModal(modal, onConfirm, onContinue, onClose, accentColor) {
+  const counts = {};
+  modal.mix.forEach(l => { counts[l] = (counts[l] || 0) + 1; });
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+      <div style={{ background: "white", borderRadius: 4, maxWidth: 440, width: "100%", overflow: "hidden", boxShadow: "0 16px 48px rgba(0,0,0,0.25)" }}>
+        <div style={{ background: accentColor, padding: "14px 20px" }}>
+          <div style={{ fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: "rgba(255,255,255,0.6)", marginBottom: 3 }}>No grade entered</div>
+          <div style={{ color: "white", fontSize: 15 }}>Likely grade for this role</div>
+        </div>
+        <div style={{ padding: "20px 22px" }}>
+          <p style={{ margin: "0 0 6px", fontSize: 13, color: "#666" }}>Based on the job title, this role is typically:</p>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "10px 0" }}>
+            <span style={{ fontSize: 26, fontWeight: "bold", color: "#1a1a1a" }}>{modal.label}</span>
+            <span style={{ fontSize: 13, color: "#888" }}>{modal.description}</span>
+          </div>
+          <div style={{ background: "#f8f6f2", border: "1px solid #e5e0d8", borderRadius: 3, padding: "12px 14px", marginBottom: 16 }}>
+            <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#bbb", marginBottom: 8 }}>Suggested level mix (6 competencies)</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {Object.entries(counts).map(([lvl, count]) => (
+                <span key={lvl} style={{ background: LC[lvl].bg, color: "white", fontSize: 12, padding: "3px 12px", borderRadius: 20, fontWeight: "bold" }}>
+                  {count}× {lvl}
+                </span>
+              ))}
+            </div>
+          </div>
+          <p style={{ margin: "0 0 16px", fontSize: 12, color: "#aaa", fontStyle: "italic" }}>
+            You can update the grade field at any time and hit Generate again.
+          </p>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => onConfirm(modal.grade)} style={{ flex: 1, background: accentColor, color: "white", border: "none", padding: "10px 0", borderRadius: 2, cursor: "pointer", fontSize: 13, fontFamily: "inherit", fontWeight: "bold" }}>
+              Use {modal.label}
+            </button>
+            <button onClick={onContinue} style={{ flex: 1, background: "white", color: "#555", border: "1px solid #ddd", padding: "10px 0", borderRadius: 2, cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>
+              Continue without confirming
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── STYLES ───────────────────────────────────────────────────────────────────
+
+const lbl     = { display: "block", fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#aaa", marginBottom: 5 };
+const inp     = { width: "100%", boxSizing: "border-box", padding: "8px 10px", border: "1px solid #ddd", borderRadius: 2, fontSize: 14, fontFamily: "Georgia, serif", background: "#fafaf8", outline: "none", color: "#222" };
+const btn     = (bg) => ({ background: bg, color: "white", border: "none", padding: "9px 20px", borderRadius: 2, cursor: "pointer", fontSize: 12, letterSpacing: 1, textTransform: "uppercase", fontFamily: "inherit", transition: "background 0.3s" });
+const ghostBtn = { background: "white", color: "#888", border: "1px solid #ddd", padding: "6px 14px", borderRadius: 2, cursor: "pointer", fontSize: 11, letterSpacing: 0.5, textTransform: "uppercase", fontFamily: "inherit" };
