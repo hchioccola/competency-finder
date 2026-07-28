@@ -519,6 +519,21 @@ export default function App() {
   const [iPackGenerated, setIPackGenerated] = useState(false);
   const [iCopied, setICopied]   = useState(false);
 
+  // Password gate
+  const [isAuthed, setIsAuthed]           = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+
+  const correctPassword = "JDMagic!2026@";
+
+  const handlePasswordSubmit = (e) => {
+    e.preventDefault();
+    if (passwordInput.trim() === correctPassword) {
+      setIsAuthed(true);
+    } else {
+      alert("Incorrect password.");
+    }
+  };
+  
   const gradeKey  = grade.trim().toUpperCase();
   const gradeInfo = GRADES[gradeKey] || null;
   const lvlTabs   = uniqueLevels(gradeKey);
@@ -693,6 +708,109 @@ export default function App() {
   // ── RENDER ─────────────────────────────────────────────────────────────────
 
   return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#ffffff",
+        fontFamily: "Arial, Helvetica, sans-serif",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {!isAuthed ? (
+        // Password screen
+        <div
+          style={{
+            background: "white",
+            border: "1px solid #e5e0d8",
+            borderRadius: 4,
+            padding: "24px 28px",
+            maxWidth: 380,
+            width: "100%",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              letterSpacing: 3,
+              textTransform: "uppercase",
+              color: "#DA291C",
+              marginBottom: 4,
+            }}
+          >
+            TA Tools | BETA v1
+          </div>
+          <h1
+            style={{
+              margin: "0 0 12px",
+              fontSize: 20,
+              color: "#222",
+            }}
+          >
+            Enter password to continue
+          </h1>
+          <p
+            style={{
+              margin: "0 0 16px",
+              fontSize: 13,
+              color: "#666",
+            }}
+          >
+            This tool is for internal use. Please enter the password.
+          </p>
+          <form onSubmit={handlePasswordSubmit}>
+            <label
+              style={{
+                display: "block",
+                fontSize: 10,
+                letterSpacing: 2,
+                textTransform: "uppercase",
+                color: "#aaa",
+                marginBottom: 6,
+              }}
+            >
+              Password
+            </label>
+            <input
+              type="password"
+              value={passwordInput}
+              onChange={e => setPasswordInput(e.target.value)}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "8px 10px",
+                border: "1px solid #ddd",
+                borderRadius: 2,
+                fontSize: 14,
+                fontFamily: "Arial, Helvetica, sans-serif",
+                background: "#fafaf8",
+                outline: "none",
+                color: "#222",
+                marginBottom: 14,
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                background: "#DA291C",
+                color: "white",
+                border: "none",
+                padding: "9px 18px",
+                borderRadius: 2,
+                cursor: "pointer",
+                fontSize: 13,
+                fontFamily: "Arial, Helvetica, sans-serif",
+                fontWeight: "bold",
+              }}
+            >
+              Continue
+            </button>
+          </form>
+        </div>
+      ) : (
+      
     <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "Arial, Helvetica, sans-serif" }}>
 
       {/* Top nav */}
