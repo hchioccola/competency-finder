@@ -698,14 +698,14 @@ export default function App() {
       {/* Top nav */}
       <div style={{ background: "#DA291C", borderBottom: "3px solid #DA291C" }}>
         <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "stretch" }}>
-          <div style={{ padding: "16px 0 0", marginRight: 32 }}>
+          <div style={{ padding: "10px 0 0", marginRight: 32 }}>
             <div style={{ fontSize: 9, color: "#ffffff", letterSpacing: 3, textTransform: "uppercase", marginBottom: 1.5 }}> TA Tools | BETA </div>
           </div>
           {[
             { key: "selector", label: "Competency Selector" },
             { key: "interview", label: "Interview Pack" },
           ].map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} style={{ background: "none", border: "none", borderBottom: tab === t.key ? "3px solid #fff" : "3px solid transparent", color: tab === t.key ? "white" : "#888", padding: "16px 20px 13px", cursor: "pointer", fontSize: 13, fontFamily: "inherit", letterSpacing: 0.3, marginBottom: -3, transition: "all 0.15s" }}>
+            <button key={t.key} onClick={() => setTab(t.key)} style={{ background: "none", border: "none", borderBottom: tab === t.key ? "3px solid #fff" : "3px solid transparent", color: tab === t.key ? "white" : "#fbd3d0", padding: "16px 20px 13px", cursor: "pointer", fontSize: 13, fontFamily: "inherit", letterSpacing: 0.3, marginBottom: -3, transition: "all 0.15s" }}>
               {t.label}
             </button>
           ))}
