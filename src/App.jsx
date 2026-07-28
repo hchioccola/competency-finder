@@ -693,7 +693,7 @@ export default function App() {
   // ── RENDER ─────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8f6f2", fontFamily: "Georgia, serif" }}>
+    <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "Arial, Helvetica, sans-serif" }}>
 
       {/* Top nav */}
       <div style={{ background: "#1a1a1a", borderBottom: "3px solid #333" }}>
@@ -1089,6 +1089,6 @@ function renderModal(modal, onConfirm, onContinue, onClose, accentColor) {
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 
 const lbl     = { display: "block", fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#aaa", marginBottom: 5 };
-const inp     = { width: "100%", boxSizing: "border-box", padding: "8px 10px", border: "1px solid #ddd", borderRadius: 2, fontSize: 14, fontFamily: "Georgia, serif", background: "#fafaf8", outline: "none", color: "#222" };
+const inp     = { width: "100%", boxSizing: "border-box", padding: "8px 10px", border: "1px solid #ddd", borderRadius: 2, fontSize: 14, fontFamily: "Arial, Helvetica, sans-serif", background: "#fafaf8", outline: "none", color: "#222" };
 const btn     = (bg) => ({ background: bg, color: "white", border: "none", padding: "9px 20px", borderRadius: 2, cursor: "pointer", fontSize: 12, letterSpacing: 1, textTransform: "uppercase", fontFamily: "inherit", transition: "background 0.3s" });
 const ghostBtn = { background: "white", color: "#888", border: "1px solid #ddd", padding: "6px 14px", borderRadius: 2, cursor: "pointer", fontSize: 11, letterSpacing: 0.5, textTransform: "uppercase", fontFamily: "inherit" };
